@@ -128,7 +128,7 @@ func platformFromControllerConfigSpec(ic *mcfgv1.ControllerConfigSpec) (string, 
 		return "", fmt.Errorf("cannot generate MachineConfigs when no platform is set")
 	case platformBase:
 		return "", fmt.Errorf("platform _base unsupported")
-	case platformAWS, platformAzure, platformBaremetal, platformGCP, platformOpenstack, platformLibvirt, platformNone:
+	case platformAWS, platformAzure, platformBaremetal, platformGCP, platformOpenstack, platformLibvirt, platformNone, platformVSphere:
 		return ic.Platform, nil
 	default:
 		// platformNone is used for a non-empty, but currently unsupported platform.
@@ -374,8 +374,10 @@ func cloudProvider(cfg RenderConfig) (interface{}, error) {
 	// FIXME Explicitly disable (remove) the cloud provider on OpenStack for now
 	// Don't forget to turn the test case back on as well
 	switch cfg.Platform {
-	case platformAWS, platformAzure, platformVSphere:
+	case platformAWS, platformAzure:
 		return cfg.Platform, nil
+	case platformVSphere:
+		return "", nil // kubelet crash errors when provider set to VSphere right now
 	case platformGCP:
 		return "gce", nil
 	default:
