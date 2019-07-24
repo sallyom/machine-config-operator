@@ -22,6 +22,9 @@ spec:
     description: When progress is blocked on updating one or more nodes, or the pool configuration is failing.
     name: Degraded
     type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   # group name to use for REST API: /apis/<group>/<version>
   group: machineconfiguration.openshift.io
   # list of versions supported by this CustomResourceDefinition
