@@ -456,7 +456,8 @@ func Reconcilable(oldConfig, newConfig *mcfgv1.MachineConfig) (*MachineConfigDif
 	// we can reconcile any state changes in the systemd section.
 
 	// FIPS section
-	// We do not allow update to FIPS for a running cluster, so any changes here will be an error
+	// We do not allow update to FIPS for a running cluster, so any changes here will
+	// not be honored, will result in warning that system FIPS will remain same as current.
 	if err := checkFIPS(oldConfig, newConfig); err != nil {
 		return nil, err
 	}
@@ -493,24 +494,33 @@ func verifyUserFields(pwdUser igntypes.PasswdUser) error {
 // See also https://github.com/openshift/installer/pull/2594
 // Anyone who wants to force this can change the MC flag, then
 // `oc debug node` and run the disable command by hand, then reboot.
-// If we detect that FIPS has been changed, we reject the update.
+// If we detect that FIPS has been changed, we don't honor the change
+// and issue a warning.
 func checkFIPS(current, desired *mcfgv1.MachineConfig) error {
-
+	isFIPS := ""
 	content, err := ioutil.ReadFile(fipsFile)
 	if err != nil {
 		return errors.Wrapf(err, "Error reading FIPS file at %s: %s", fipsFile, string(content))
+	}
+	switch string(content) {
+	case "1":
+        isFIPS = "enabled"
+	default:
+	    isFIPS = "disabled"
 	}
 	nodeFIPS, err := strconv.ParseBool(strings.TrimSuffix(string(content), "\n"))
 	if err != nil {
 		return errors.Wrapf(err, "Error parsing FIPS file at %s", fipsFile)
 	}
-	if desired.Spec.FIPS == nodeFIPS {
+	if desired.Spec.FIPS != nodeFIPS {
+	    // warn and continue
+		glog.Warningf("detected change to FIPS flag. Refusing to modify FIPS on a running cluster, FIPS will remain %s", isFIPS)
 		// Check if FIPS on the system is at the desired setting
 		current.Spec.FIPS = nodeFIPS
-		return nil
+		desired.Spec.FIPS = nodeFIPS
 	}
 
-	return errors.New("detected change to FIPS flag. Refusing to modify FIPS on a running cluster")
+	return nil
 }
 
 // generateKargsCommand performs a diff between the old/new MC kernelArguments,
